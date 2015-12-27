@@ -16,6 +16,11 @@ var view = {
     var cell = document.getElementById(location);
     //Добавляем клас к элементу при промахе
     cell.setAttribute("class", "miss");
+  },
+  gameOver: function(gameOverMsg) {
+    if (model.shipsSunk === 3) {
+      var gameOverMsg = document.getElementById("input-form").style.visibility = "hidden";
+    }
   }
 };
 //Модель состояния
@@ -25,13 +30,13 @@ var model = {
   shipsSunk: 0,
   shipLength: 3,
   ships: [{
-    locations: ["06", "16", "26"],
+    locations: [0, 0, 0],
     hits: ["", "", ""]
   }, {
-    locations: ["24", "34", "44"],
+    locations: [0, 0, 0],
     hits: ["", "", ""]
   }, {
-    locations: ["10", "11", "12"],
+    locations: [0, 0, 0],
     hits: ["", "", ""]
   }],
   fire: function(guess) {
@@ -45,6 +50,9 @@ var model = {
         if (this.isSunk(ship)) {
           view.displayMessage("You sank my battleship!");
           this.shipsSunk++;
+          if (this.shipsSunk === this.numShips) {
+            view.gameOver();
+          };
         }
         return true;
       }
@@ -60,24 +68,115 @@ var model = {
       }
     }
     return true;
+  },
+  // Добавление кораблей, проверяет не пересекаются ли корабли, добавляеткол-во кораблей, указанных в numShips
+  generateShipsLocation: function() {
+    var locations;
+    for (var i = 0; i < this.numShips; i++) {
+      do {
+        locations = this.generateShip();
+      } while (this.collision(locations));
+      this.ships[i].locations = locations;
+    };
+  },
+  // Генерация кораблей
+  generateShip: function() {
+    var direction = Math.floor(Math.random() * 2);
+    var row, col;
+
+    if (direction === 1) {
+      // сгенерить начальную позицию горизонтально корабля
+      row = Math.floor(Math.random() * this.boardSize);
+      col = Math.floor(Math.random() * (this.boardSize - this.shipLength));
+    } else {
+      // сгенерить начальную позицию вертикального корабля
+      row = Math.floor(Math.random() * (this.boardSize - this.shipLength));
+      col = Math.floor(Math.random() * this.boardSize);
+    }
+    var newShipLocations = [];
+    for (var i = 0; i < this.shipLength; i++) {
+      if (direction === 1) {
+        // добавить в массив для горизонтального корабля
+        newShipLocations.push(row + "" + (col + i));
+      } else {
+        // добавить в массив для вертикального корабля
+        newShipLocations.push((row + i) + "" + col);
+      }
+    };
+    return newShipLocations;
+  },
+  collision: function(locations) {
+for (var i = 0; i < this.numShips; i++) {
+var ship = model.ships[i];
+for (var j = 0; j < locations.length; j++) {
+if (ship.locations.indexOf(locations[j]) >= 0) {
+return true;
+}
+}
+}
+return false;
+}
+};
+// Модель контроллера
+var controller = {
+  guesses: 0,
+  processGuess: function(guess) {
+    var location = parseGuess(guess);
+    if (location) {
+      this.guesses++;
+      var hit = model.fire(location);
+      if (hit && model.shipsSunk === model.numShips) {
+        view.displayMessage("You sank all my battleships, in " +
+          this.guesses + " guesses");
+      }
+    }
   }
 };
-view.displayMiss("00");
-view.displayHit("34");
-view.displayMiss("55");
-view.displayHit("12");
-view.displayMiss("25");
-view.displayHit("26");
 
-view.displayMessage("Hello!");
 
-model.fire("53");
-model.fire("06");
-model.fire("16");
-model.fire("26");
-model.fire("34");
-model.fire("24");
-model.fire("44");
-model.fire("12");
-model.fire("11");
-model.fire("10");
+function parseGuess(guess) {
+  var alphabet = ["A", "B", "C", "D", "E", "F", "G"];
+  if (guess === null || guess.length !== 2) {
+    alert("Oops, please enter a letter and a number on the board.");
+  } else {
+    firstChar = guess.charAt(0);
+    var row = alphabet.indexOf(firstChar);
+    var column = guess.charAt(1);
+    if (isNaN(row) || isNaN(column)) {
+      alert("Oops, that isn't on the board.");
+    } else if (row < 0 || row >= model.boardSize ||
+      column < 0 || column >= model.boardSize) {
+      alert("Oops, that's off the board!");
+    } else {
+      return row + column;
+    }
+  }
+  return null;
+}
+
+//Обработчик события
+
+function init() {
+  var fireButton = document.getElementById("fireButton");
+  fireButton.onclick = handleFireButon;
+  var guessInput = document.getElementById("guessInput");
+  guessInput.onkeypress = handleKeyPress;
+  model.generateShipsLocation();
+};
+
+function handleFireButon() {
+  var guessInput = document.getElementById("guessInput");
+  var guess = guessInput.value.toUpperCase();
+  controller.processGuess(guess);
+  guessInput.value = "";
+};
+
+function handleKeyPress(e) {
+  var fireButton = document.getElementById("fireButton");
+  if (e.keyCode === 13) {
+    fireButton.click();
+    return false;
+  }
+}
+
+window.onload = init;
